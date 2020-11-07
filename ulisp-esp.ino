@@ -18,6 +18,7 @@ const char LispLibrary[] PROGMEM = "";
 // #define lineeditor
 // #define vt100
 // #define wifion
+#define bluetoothserial
 
 // Includes
 
@@ -27,7 +28,9 @@ const char LispLibrary[] PROGMEM = "";
 #include <Wire.h>
 #include <limits.h>
 #include <EEPROM.h>
+#if defined(bluetoothserial)
 #include <BluetoothSerial.h> //Header File for Serial Bluetooth, will be added by default into Arduino
+#endif
 #if defined(wifion)
 #if defined (ESP8266)
   #include <ESP8266WiFi.h>
@@ -54,7 +57,11 @@ Adafruit_SSD1306 tft(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
   #define SDSIZE 0
 #endif
 
-BluetoothSerial ESP_BT;
+#if defined(bluetoothserial)
+BluetoothSerial ConsolePort;
+#else
+HardSerial ConsolePort;
+#endif
 
 // C Macros
 
@@ -4429,7 +4436,7 @@ void deletesymbol (symbol_t name) {
 }
 
 void testescape () {
-  if (ESP_BT.read() == '~') error2(0, PSTR("escape!"));
+  if (ConsolePort.read() == '~') error2(0, PSTR("escape!"));
 }
 
 // Main evaluator
@@ -4585,8 +4592,8 @@ inline int maxbuffer (char *buffer) {
 
 void pserial (char c) {
   LastPrint = c;
-  if (c == '\n') ESP_BT.write('\r');
-  ESP_BT.write(c);
+  if (c == '\n') ConsolePort.write('\r');
+  ConsolePort.write(c);
 }
 
 const char ControlCodes[] PROGMEM = "Null\0SOH\0STX\0ETX\0EOT\0ENQ\0ACK\0Bell\0Backspace\0Tab\0Newline\0VT\0"
@@ -4790,15 +4797,15 @@ volatile uint8_t KybdAvailable = 0;
 
 // Parenthesis highlighting
 void esc (int p, char c) {
-  ESP_BT.write('\e'); ESP_BT.write('[');
-  ESP_BT.write((char)('0'+ p/100));
-  ESP_BT.write((char)('0'+ (p/10) % 10));
-  ESP_BT.write((char)('0'+ p % 10));
-  ESP_BT.write(c);
+  ConsolePort.write('\e'); ConsolePort.write('[');
+  ConsolePort.write((char)('0'+ p/100));
+  ConsolePort.write((char)('0'+ (p/10) % 10));
+  ConsolePort.write((char)('0'+ p % 10));
+  ConsolePort.write(c);
 }
 
 void hilight (char c) {
-  ESP_BT.write('\e'); ESP_BT.write('['); ESP_BT.write(c); ESP_BT.write('m');
+  ConsolePort.write('\e'); ConsolePort.write('['); ConsolePort.write(c); ConsolePort.write('m');
 }
 
 void Highlight (int p, int wp, uint8_t invert) {
@@ -4816,11 +4823,11 @@ void Highlight (int p, int wp, uint8_t invert) {
     if (up) esc(up, 'A');
     if (col > targetcol) esc(left, 'D'); else esc(-left, 'C');
     if (invert) hilight('7');
-    ESP_BT.write('('); ESP_BT.write('\b');
+    ConsolePort.write('('); ConsolePort.write('\b');
     // Go back
     if (up) esc(up, 'B'); // Down
     if (col > targetcol) esc(left, 'C'); else esc(-left, 'D');
-    ESP_BT.write('\b'); ESP_BT.write(')');
+    ConsolePort.write('\b'); ConsolePort.write(')');
     if (invert) hilight('0');
   }
 }
@@ -4843,12 +4850,12 @@ void processkey (char c) {
   if (c == 8 || c == 0x7f) {     // Backspace key
     if (WritePtr > 0) {
       WritePtr--;
-      ESP_BT.write(8); ESP_BT.write(' '); ESP_BT.write(8);
+      ConsolePort.write(8); ConsolePort.write(' '); ConsolePort.write(8);
       if (WritePtr) c = KybdBuf[WritePtr-1];
     }
   } else if (WritePtr < KybdBufSize) {
     KybdBuf[WritePtr++] = c;
-    ESP_BT.write(c);
+    ConsolePort.write(c);
   }
 #if defined(vt100)
   // Do new parenthesis highlight
@@ -4876,8 +4883,8 @@ int gserial () {
   }
 #if defined(lineeditor)
   while (!KybdAvailable) {
-    while (!ESP_BT.available());
-    char temp = ESP_BT.read();
+    while (!ConsolePort.available());
+    char temp = ConsolePort.read();
     processkey(temp);
   }
   if (ReadPtr != WritePtr) return KybdBuf[ReadPtr++];
@@ -4885,8 +4892,8 @@ int gserial () {
   WritePtr = 0;
   return '\n';
 #else
-  while (!ESP_BT.available());
-  char temp = ESP_BT.read();
+  while (!ConsolePort.available());
+  char temp = ConsolePort.read();
   if (temp != '\n') pserial(temp);
   return temp;
 #endif
@@ -5070,7 +5077,13 @@ void initenv () {
 }
 
 void setup () {
-  ESP_BT.begin("Borinot");
+#if defined(bluetoothserial)
+  ConsolePort.begin("Borinot");
+#else
+  Serial.begin(9600);   
+  int start = millis(); 
+  while ((millis() - start) < 5000) { if (Serial) break; }
+#endif
   initworkspace();
   initenv();
   initsleep();
@@ -5116,7 +5129,7 @@ void loop () {
     if (autorun == 12) autorunimage();
   }
   // Come here after error
-  delay(100); while (ESP_BT.available()) ESP_BT.read();
+  delay(100); while (ConsolePort.available()) ConsolePort.read();
   clrflag(NOESC); BreakLevel = 0;
   for (int i=0; i<TRACEMAX; i++) TraceDepth[i] = 0;
   #if defined(sdcardsupport)
