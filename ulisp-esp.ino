@@ -10,13 +10,14 @@ const char LispLibrary[] PROGMEM = "";
 // Compile options
 
 // #define resetautorun
-#define printfreespace
+// #define printfreespace
 // #define printgcs
 // #define sdcardsupport
 // #define gfxsupport
 // #define lisplibrary
 // #define lineeditor
 // #define vt100
+// #define wifion
 
 // Includes
 
@@ -26,10 +27,13 @@ const char LispLibrary[] PROGMEM = "";
 #include <Wire.h>
 #include <limits.h>
 #include <EEPROM.h>
+#include <BluetoothSerial.h> //Header File for Serial Bluetooth, will be added by default into Arduino
+#if defined(wifion)
 #if defined (ESP8266)
   #include <ESP8266WiFi.h>
 #elif defined (ESP32)
   #include <WiFi.h>
+#endif
 #endif
 
 #if defined(gfxsupport)
@@ -49,6 +53,8 @@ Adafruit_SSD1306 tft(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
 #else
   #define SDSIZE 0
 #endif
+
+BluetoothSerial ESP_BT;
 
 // C Macros
 
@@ -1308,6 +1314,7 @@ inline int SDread () {
 }
 #endif
 
+#if defined(wifion)
 WiFiClient client;
 WiFiServer server(80);
 
@@ -1319,6 +1326,7 @@ inline int WiFiread () {
   }
   return client.read();
 }
+#endif
 
 void serialbegin (int address, int baud) {
   if (address == 1) Serial1.begin((long)baud*100);
@@ -1346,14 +1354,18 @@ gfun_t gstreamfun (object *args) {
   #if defined(sdcardsupport)
   else if (streamtype == SDSTREAM) gfun = (gfun_t)SDread;
   #endif
+  #if defined(wifion)
   else if (streamtype == WIFISTREAM) gfun = (gfun_t)WiFiread;
+  #endif
   else error2(0, PSTR("unknown stream type"));
   return gfun;
 }
 
 inline void spiwrite (char c) { SPI.transfer(c); }
 inline void serial1write (char c) { Serial1.write(c); }
+#if defined(wifion)
 inline void WiFiwrite (char c) { client.write(c); }
+#endif
 #if defined(sdcardsupport)
 inline void SDwrite (char c) { SDpfile.write(c); }
 #endif
@@ -1384,7 +1396,9 @@ pfun_t pstreamfun (object *args) {
   #if defined(gfxsupport)
   else if (streamtype == GFXSTREAM) pfun = (pfun_t)gfxwrite;
   #endif
+  #if defined(wifion)
   else if (streamtype == WIFISTREAM) pfun = (pfun_t)WiFiwrite;
+  #endif
   else error2(0, PSTR("unknown stream type"));
   return pfun;
 }
@@ -1948,6 +1962,7 @@ object *sp_withgfx (object *args, object *env) {
 }
 
 object *sp_withclient (object *args, object *env) {
+#if defined(wifion)
   object *params = first(args);
   object *var = first(params);
   params = cdr(params);
@@ -1972,6 +1987,8 @@ object *sp_withclient (object *args, object *env) {
   object *result = eval(tf_progn(forms,env), env);
   client.stop();
   return result;
+#endif  
+  return nil;
 }
 
 // Tail-recursive forms
@@ -3636,20 +3653,25 @@ object *fn_listlibrary (object *args, object *env) {
 }
 
 // Wi-fi
-
 object *fn_available (object *args, object *env) {
+#if defined(wifion)
   (void) env;
   if (isstream(first(args))>>8 != WIFISTREAM) error2(AVAILABLE, PSTR("invalid stream"));
   return number(client.available());
+#endif 
+  return nil;
 }
 
 object *fn_wifiserver (object *args, object *env) {
+#if defined(wifion)
   (void) args, (void) env;
   server.begin();
+#endif
   return nil;
 }
 
 object *fn_wifisoftap (object *args, object *env) {
+#if defined(wifion)
   (void) env;
   char ssid[33], pass[65];
   if (args == NULL) return WiFi.softAPdisconnect(true) ? tee : nil;
@@ -3668,20 +3690,29 @@ object *fn_wifisoftap (object *args, object *env) {
     WiFi.softAP(cstring(first, ssid, 33), cstring(second, pass, 65), channel, hidden);
   }
   return lispstring((char*)WiFi.softAPIP().toString().c_str());
+#endif  
+  return nil;
 }
 
 object *fn_connected (object *args, object *env) {
+#if defined(wifion)
   (void) env;
   if (isstream(first(args))>>8 != WIFISTREAM) error2(CONNECTED, PSTR("invalid stream"));
   return client.connected() ? tee : nil;
+#endif  
+  return nil;
 }
 
 object *fn_wifilocalip (object *args, object *env) {
+#if defined(wifion)
   (void) args, (void) env;
   return lispstring((char*)WiFi.localIP().toString().c_str());
+#endif
+  return nil;
 }
 
 object *fn_wificonnect (object *args, object *env) {
+#if defined(wifion)
   (void) env;
   char ssid[33], pass[65];
   if (args == NULL) { WiFi.disconnect(true); return nil; }
@@ -3692,6 +3723,7 @@ object *fn_wificonnect (object *args, object *env) {
   else if (result == WL_NO_SSID_AVAIL) error2(WIFICONNECT, PSTR("network not found"));
   else if (result == WL_CONNECT_FAILED) error2(WIFICONNECT, PSTR("connection failed"));
   else error2(WIFICONNECT, PSTR("unable to connect"));
+#endif
   return nil;
 }
 
@@ -4397,7 +4429,7 @@ void deletesymbol (symbol_t name) {
 }
 
 void testescape () {
-  if (Serial.read() == '~') error2(0, PSTR("escape!"));
+  if (ESP_BT.read() == '~') error2(0, PSTR("escape!"));
 }
 
 // Main evaluator
@@ -4553,8 +4585,8 @@ inline int maxbuffer (char *buffer) {
 
 void pserial (char c) {
   LastPrint = c;
-  if (c == '\n') Serial.write('\r');
-  Serial.write(c);
+  if (c == '\n') ESP_BT.write('\r');
+  ESP_BT.write(c);
 }
 
 const char ControlCodes[] PROGMEM = "Null\0SOH\0STX\0ETX\0EOT\0ENQ\0ACK\0Bell\0Backspace\0Tab\0Newline\0VT\0"
@@ -4758,15 +4790,15 @@ volatile uint8_t KybdAvailable = 0;
 
 // Parenthesis highlighting
 void esc (int p, char c) {
-  Serial.write('\e'); Serial.write('[');
-  Serial.write((char)('0'+ p/100));
-  Serial.write((char)('0'+ (p/10) % 10));
-  Serial.write((char)('0'+ p % 10));
-  Serial.write(c);
+  ESP_BT.write('\e'); ESP_BT.write('[');
+  ESP_BT.write((char)('0'+ p/100));
+  ESP_BT.write((char)('0'+ (p/10) % 10));
+  ESP_BT.write((char)('0'+ p % 10));
+  ESP_BT.write(c);
 }
 
 void hilight (char c) {
-  Serial.write('\e'); Serial.write('['); Serial.write(c); Serial.write('m');
+  ESP_BT.write('\e'); ESP_BT.write('['); ESP_BT.write(c); ESP_BT.write('m');
 }
 
 void Highlight (int p, int wp, uint8_t invert) {
@@ -4784,11 +4816,11 @@ void Highlight (int p, int wp, uint8_t invert) {
     if (up) esc(up, 'A');
     if (col > targetcol) esc(left, 'D'); else esc(-left, 'C');
     if (invert) hilight('7');
-    Serial.write('('); Serial.write('\b');
+    ESP_BT.write('('); ESP_BT.write('\b');
     // Go back
     if (up) esc(up, 'B'); // Down
     if (col > targetcol) esc(left, 'C'); else esc(-left, 'D');
-    Serial.write('\b'); Serial.write(')');
+    ESP_BT.write('\b'); ESP_BT.write(')');
     if (invert) hilight('0');
   }
 }
@@ -4811,12 +4843,12 @@ void processkey (char c) {
   if (c == 8 || c == 0x7f) {     // Backspace key
     if (WritePtr > 0) {
       WritePtr--;
-      Serial.write(8); Serial.write(' '); Serial.write(8);
+      ESP_BT.write(8); ESP_BT.write(' '); ESP_BT.write(8);
       if (WritePtr) c = KybdBuf[WritePtr-1];
     }
   } else if (WritePtr < KybdBufSize) {
     KybdBuf[WritePtr++] = c;
-    Serial.write(c);
+    ESP_BT.write(c);
   }
 #if defined(vt100)
   // Do new parenthesis highlight
@@ -4844,8 +4876,8 @@ int gserial () {
   }
 #if defined(lineeditor)
   while (!KybdAvailable) {
-    while (!Serial.available());
-    char temp = Serial.read();
+    while (!ESP_BT.available());
+    char temp = ESP_BT.read();
     processkey(temp);
   }
   if (ReadPtr != WritePtr) return KybdBuf[ReadPtr++];
@@ -4853,8 +4885,8 @@ int gserial () {
   WritePtr = 0;
   return '\n';
 #else
-  while (!Serial.available());
-  char temp = Serial.read();
+  while (!ESP_BT.available());
+  char temp = ESP_BT.read();
   if (temp != '\n') pserial(temp);
   return temp;
 #endif
@@ -5038,9 +5070,7 @@ void initenv () {
 }
 
 void setup () {
-  Serial.begin(9600);
-  int start = millis();
-  while ((millis() - start) < 5000) { if (Serial) break; }
+  ESP_BT.begin("Borinot");
   initworkspace();
   initenv();
   initsleep();
@@ -5086,7 +5116,7 @@ void loop () {
     if (autorun == 12) autorunimage();
   }
   // Come here after error
-  delay(100); while (Serial.available()) Serial.read();
+  delay(100); while (ESP_BT.available()) ESP_BT.read();
   clrflag(NOESC); BreakLevel = 0;
   for (int i=0; i<TRACEMAX; i++) TraceDepth[i] = 0;
   #if defined(sdcardsupport)
@@ -5095,6 +5125,8 @@ void loop () {
   #if defined(lisplibrary)
   if (!tstflag(LIBRARYLOADED)) { setflag(LIBRARYLOADED); loadfromlibrary(NULL); }
   #endif
+  #if defined(wifion)
   client.stop();
+  #endif
   repl(NULL);
 }
