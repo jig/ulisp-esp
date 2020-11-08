@@ -132,7 +132,7 @@ DIGITALWRITE, ANALOGREAD, ANALOGWRITE, DELAY, MILLIS, SLEEP, NOTE, EDIT, PPRINT,
 REQUIRE, LISTLIBRARY, AVAILABLE, WIFISERVER, WIFISOFTAP, CONNECTED, WIFILOCALIP, WIFICONNECT, DRAWPIXEL,
 DRAWLINE, DRAWRECT, FILLRECT, DRAWCIRCLE, FILLCIRCLE, DRAWROUNDRECT, FILLROUNDRECT, DRAWTRIANGLE,
 FILLTRIANGLE, DRAWCHAR, SETCURSOR, SETTEXTCOLOR, SETTEXTSIZE, SETTEXTWRAP, FILLSCREEN, SETROTATION,
-INVERTDISPLAY, ENDFUNCTIONS };
+INVERTDISPLAY, ROUNDS, ENDFUNCTIONS };
 
 // Typedefs
 
@@ -3941,6 +3941,16 @@ object *fn_invertdisplay (object *args, object *env) {
 
 // Insert your own function definitions here
 
+
+volatile long int rounds = 0;
+
+object *fn_rounds (object *args, object *env) {
+  (void) env;
+  int r = rounds;
+  rounds = 0;
+  return number(r);
+}
+
 // Built-in procedure names - stored in PROGMEM
 
 const char string0[] PROGMEM = "nil";
@@ -4159,6 +4169,9 @@ const char string212[] PROGMEM = "fill-screen";
 const char string213[] PROGMEM = "set-rotation";
 const char string214[] PROGMEM = "invert-display";
 
+// jig
+const char string215[] PROGMEM = "rounds";
+
 // Third parameter is no. of arguments; 1st hex digit is min, 2nd hex digit is max, 0xF is unlimited
 const tbl_entry_t lookup_table[] PROGMEM = {
   { string0, NULL, 0x00 },
@@ -4376,6 +4389,8 @@ const tbl_entry_t lookup_table[] PROGMEM = {
   { string212, fn_fillscreen, 0x01 },
   { string213, fn_setrotation, 0x11 },
   { string214, fn_invertdisplay, 0x11 },
+
+  { string215, fn_rounds, 0x00 },
 };
 
 // Table lookup functions
@@ -4884,7 +4899,7 @@ int gserial () {
   }
 #if defined(lineeditor)
   while (!KybdAvailable) {
-    while (!ConsolePort.available());
+    while (!ConsolePort.available()) borinotloop();
     char temp = ConsolePort.read();
     processkey(temp);
   }
@@ -4893,7 +4908,7 @@ int gserial () {
   WritePtr = 0;
   return '\n';
 #else
-  while (!ConsolePort.available());
+  while (!ConsolePort.available()) borinotloop();
   char temp = ConsolePort.read();
   if (temp != '\n') pserial(temp);
   return temp;
@@ -5079,7 +5094,7 @@ void initenv () {
 
 void setup () {
 #if defined(bluetoothserial)
-  ConsolePort.begin("Borinot");
+  ConsolePort.begin("Borinot Esquerra");
 #else
   Serial.begin(9600);   
   int start = millis(); 
@@ -5147,4 +5162,11 @@ void loop () {
   client.stop();
   #endif
   repl(NULL);
+}
+
+// Borinot implementation
+
+
+void borinotloop() {
+  ++rounds;
 }
