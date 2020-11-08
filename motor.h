@@ -27,14 +27,10 @@ public:
     void PIDControl();
 };
 
-extern Motor MotorFrontLeft;
-extern Motor MotorFrontRight;
-extern Motor MotorRearLeft;
-extern Motor MotorRearRight;
+extern Motor MotorFront;
+extern Motor MotorRear;
 
-void ISR_MotorFrontLeft();
-void ISR_MotorFrontRight();
-void ISR_MotorRearLeft();
-void ISR_MotorRearRight();
+void ISR_MotorFront();
+void ISR_MotorRear();
 
 #endif

@@ -81,111 +81,57 @@ void Motor::PIDControl()
   }
 }
 
-Motor MotorFrontLeft(MOTOR_PWM_FRONT_LEFT,  MOTOR_FL_0, MOTOR_FL_1);
-Motor MotorFrontRight(MOTOR_PWM_FRONT_RIGHT, MOTOR_FR_0, MOTOR_FR_1);
-Motor MotorRearLeft(MOTOR_PWM_REAR_LEFT, MOTOR_RL_0, MOTOR_RL_1);
-Motor MotorRearRight(MOTOR_PWM_REAR_RIGHT, MOTOR_RR_0, MOTOR_RR_1);
+Motor MotorFront(MOTOR_PWM_FRONT,  MOTOR_F_0, MOTOR_F_1);
+Motor MotorRear(MOTOR_PWM_REAR, MOTOR_R_0, MOTOR_R_1);
 
-void ISR_MotorFrontLeftA()
+void ISR_MotorFrontA()
 {
-  int A = digitalRead(ENCODER_FRONT_LEFT_A);
-  int B = digitalRead(ENCODER_FRONT_LEFT_B);
+  int A = digitalRead(ENCODER_FRONT_A);
+  int B = digitalRead(ENCODER_FRONT_B);
   if (A == B) {
-    ++MotorFrontLeft.SpeedCounter;
-    ++MotorFrontLeft.Distance;
+    ++MotorFront.SpeedCounter;
+    ++MotorFront.Distance;
   } else {
-    --MotorFrontLeft.SpeedCounter;
-    --MotorFrontLeft.Distance;
+    --MotorFront.SpeedCounter;
+    --MotorFront.Distance;
   }
 }
 
-void ISR_MotorFrontLeftB()
+void ISR_MotorFrontB()
 {
-  int A = digitalRead(ENCODER_FRONT_LEFT_A);
-  int B = digitalRead(ENCODER_FRONT_LEFT_B);
+  int A = digitalRead(ENCODER_FRONT_A);
+  int B = digitalRead(ENCODER_FRONT_B);
   if (A != B) {
-    ++MotorFrontLeft.SpeedCounter;
-    ++MotorFrontLeft.Distance;
+    ++MotorFront.SpeedCounter;
+    ++MotorFront.Distance;
   } else {
-    --MotorFrontLeft.SpeedCounter;
-    --MotorFrontLeft.Distance;
+    --MotorFront.SpeedCounter;
+    --MotorFront.Distance;
   }
 }
 
-void ISR_MotorFrontRightA()
+void ISR_MotorRearA()
 {
-  int A = digitalRead(ENCODER_FRONT_RIGHT_A);
-  int B = digitalRead(ENCODER_FRONT_RIGHT_B);
-  if (A != B) {
-    ++MotorFrontRight.SpeedCounter;
-    ++MotorFrontRight.Distance;
-  } else {
-    --MotorFrontRight.SpeedCounter;
-    --MotorFrontRight.Distance;
-  }
-}
-
-void ISR_MotorFrontRightB()
-{
-  int A = digitalRead(ENCODER_FRONT_RIGHT_A);
-  int B = digitalRead(ENCODER_FRONT_RIGHT_B);
+  int A = digitalRead(ENCODER_REAR_A);
+  int B = digitalRead(ENCODER_REAR_B);
   if (A == B) {
-    ++MotorFrontRight.SpeedCounter;
-    ++MotorFrontRight.Distance;
+    ++MotorRear.SpeedCounter;
+    ++MotorRear.Distance;
   } else {
-    --MotorFrontRight.SpeedCounter;
-    --MotorFrontRight.Distance;
+    --MotorRear.SpeedCounter;
+    --MotorRear.Distance;
   }
 }
 
-void ISR_MotorRearLeftA()
+void ISR_MotorRearB()
 {
-  int A = digitalRead(ENCODER_REAR_LEFT_A);
-  int B = digitalRead(ENCODER_REAR_LEFT_B);
-  if (A == B) {
-    ++MotorRearLeft.SpeedCounter;
-    ++MotorRearLeft.Distance;
-  } else {
-    --MotorRearLeft.SpeedCounter;
-    --MotorRearLeft.Distance;
-  }
-}
-
-void ISR_MotorRearLeftB()
-{
-  int A = digitalRead(ENCODER_REAR_LEFT_A);
-  int B = digitalRead(ENCODER_REAR_LEFT_B);
+  int A = digitalRead(ENCODER_REAR_A);
+  int B = digitalRead(ENCODER_REAR_B);
   if (A != B) {
-    ++MotorRearLeft.SpeedCounter;
-    ++MotorRearLeft.Distance;
+    ++MotorRear.SpeedCounter;
+    ++MotorRear.Distance;
   } else {
-    --MotorRearLeft.SpeedCounter;
-    --MotorRearLeft.Distance;
-  }
-}
-
-void ISR_MotorRearRightA()
-{
-  int A = digitalRead(ENCODER_REAR_RIGHT_A);
-  int B = digitalRead(ENCODER_REAR_RIGHT_B);
-  if (A != B) {
-    ++MotorRearRight.SpeedCounter;
-    ++MotorRearRight.Distance;
-  } else {
-    --MotorRearRight.SpeedCounter;
-    --MotorRearRight.Distance;    
-  }
-}
-
-void ISR_MotorRearRightB()
-{
-  int A = digitalRead(ENCODER_REAR_RIGHT_A);
-  int B = digitalRead(ENCODER_REAR_RIGHT_B);
-  if (A == B) {
-    ++MotorRearRight.SpeedCounter;
-    ++MotorRearRight.Distance;
-  } else {
-    --MotorRearRight.SpeedCounter;
-    --MotorRearRight.Distance;    
+    --MotorRear.SpeedCounter;
+    --MotorRear.Distance;
   }
 }

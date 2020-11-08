@@ -132,7 +132,11 @@ DIGITALWRITE, ANALOGREAD, ANALOGWRITE, DELAY, MILLIS, SLEEP, NOTE, EDIT, PPRINT,
 REQUIRE, LISTLIBRARY, AVAILABLE, WIFISERVER, WIFISOFTAP, CONNECTED, WIFILOCALIP, WIFICONNECT, DRAWPIXEL,
 DRAWLINE, DRAWRECT, FILLRECT, DRAWCIRCLE, FILLCIRCLE, DRAWROUNDRECT, FILLROUNDRECT, DRAWTRIANGLE,
 FILLTRIANGLE, DRAWCHAR, SETCURSOR, SETTEXTCOLOR, SETTEXTSIZE, SETTEXTWRAP, FILLSCREEN, SETROTATION,
-INVERTDISPLAY, ROUNDS, ENDFUNCTIONS };
+INVERTDISPLAY, 
+// Borinot commands
+BORINOT_ROUNDS, BORINOT_RESET, BORINOT_BATTERY_LEVEL, BORINOT_SPEED_N, BORINOT_SERVO_N,
+// End of uLisp Functions  
+ENDFUNCTIONS };
 
 // Typedefs
 
@@ -3941,16 +3945,6 @@ object *fn_invertdisplay (object *args, object *env) {
 
 // Insert your own function definitions here
 
-
-volatile long int rounds = 0;
-
-object *fn_rounds (object *args, object *env) {
-  (void) env;
-  int r = rounds;
-  rounds = 0;
-  return number(r);
-}
-
 // Built-in procedure names - stored in PROGMEM
 
 const char string0[] PROGMEM = "nil";
@@ -4169,8 +4163,13 @@ const char string212[] PROGMEM = "fill-screen";
 const char string213[] PROGMEM = "set-rotation";
 const char string214[] PROGMEM = "invert-display";
 
-// jig
+// Borinot
+
 const char string215[] PROGMEM = "rounds";
+const char string216[] PROGMEM = "reset";
+const char string217[] PROGMEM = "battery";
+const char string218[] PROGMEM = "speed";
+const char string219[] PROGMEM = "servo";
 
 // Third parameter is no. of arguments; 1st hex digit is min, 2nd hex digit is max, 0xF is unlimited
 const tbl_entry_t lookup_table[] PROGMEM = {
@@ -4390,7 +4389,13 @@ const tbl_entry_t lookup_table[] PROGMEM = {
   { string213, fn_setrotation, 0x11 },
   { string214, fn_invertdisplay, 0x11 },
 
+  // Borinot
+  
   { string215, fn_rounds, 0x00 },
+  { string216, fn_reset, 0x00 },
+  { string217, fn_battery, 0x00 },
+  { string218, fn_speed, 0x12 },
+  { string219, fn_servo, 0x22 },
 };
 
 // Table lookup functions
@@ -5162,11 +5167,4 @@ void loop () {
   client.stop();
   #endif
   repl(NULL);
-}
-
-// Borinot implementation
-
-
-void borinotloop() {
-  ++rounds;
 }
