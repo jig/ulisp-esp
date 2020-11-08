@@ -19,6 +19,7 @@ const char LispLibrary[] PROGMEM = "";
 // #define vt100
 // #define wifion
 #define bluetoothserial
+// #define prompt
 
 // Includes
 
@@ -5104,7 +5105,9 @@ void repl (object *env) {
       pfstring(PSTR(" : "), pserial);
       pint(BreakLevel, pserial);
     }
+    #if defined(prompt)
     pfstring(PSTR("> "), pserial);
+    #endif 
     object *line = read(gserial);
     if (BreakLevel && line == nil) { pln(pserial); return; }
     if (line == (object *)KET) error2(0, PSTR("unmatched right bracket"));
@@ -5115,7 +5118,9 @@ void repl (object *env) {
     printobject(line, pserial);
     pop(GCStack);
     pfl(pserial);
+    #if defined(prompt)
     pln(pserial);
+    #endif
   }
 }
 
