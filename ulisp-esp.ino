@@ -15,10 +15,10 @@ const char LispLibrary[] PROGMEM = "";
 // #define sdcardsupport
 // #define gfxsupport
 // #define lisplibrary
-// #define lineeditor
+#define lineeditor
 // #define vt100
-// #define wifion
-#define bluetoothserial
+#define wifion
+// #define bluetoothserial
 // #define prompt
 
 // Includes
@@ -61,7 +61,7 @@ Adafruit_SSD1306 tft(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
 #if defined(bluetoothserial)
 BluetoothSerial ConsolePort;
 #else
-HardSerial ConsolePort;
+#define ConsolePort Serial
 #endif
 
 // C Macros
@@ -135,6 +135,7 @@ FILLTRIANGLE, DRAWCHAR, SETCURSOR, SETTEXTCOLOR, SETTEXTSIZE, SETTEXTWRAP, FILLS
 INVERTDISPLAY, 
 // Borinot commands
 BORINOT_ROUNDS, BORINOT_RESET, BORINOT_BATTERY_LEVEL, BORINOT_SPEED_N, BORINOT_SERVO_N,
+LEDCSETUP, LEDCATTACHPIN, LEDCWRITE,
 // End of uLisp Functions  
 ENDFUNCTIONS };
 
@@ -4170,6 +4171,9 @@ const char string216[] PROGMEM = "reset";
 const char string217[] PROGMEM = "battery";
 const char string218[] PROGMEM = "speed";
 const char string219[] PROGMEM = "servo";
+const char string220[] PROGMEM = "ledcsetup";
+const char string221[] PROGMEM = "ledcattachpin";
+const char string222[] PROGMEM = "ledcwrite";
 
 // Third parameter is no. of arguments; 1st hex digit is min, 2nd hex digit is max, 0xF is unlimited
 const tbl_entry_t lookup_table[] PROGMEM = {
@@ -4396,6 +4400,9 @@ const tbl_entry_t lookup_table[] PROGMEM = {
   { string217, fn_battery, 0x00 },
   { string218, fn_speed, 0x12 },
   { string219, fn_servo, 0x22 },
+  { string220, fn_ledcsetup, 0x33 },
+  { string221, fn_ledcattachpin, 0x22 },
+  { string222, fn_ledcwrite, 0x22 },
 };
 
 // Table lookup functions
@@ -5097,11 +5104,20 @@ void initenv () {
   tee = symbol(TEE);
 }
 
+int pin1 = 2;
+int pin2 = 4;
+int pin3 = 5;
+int pin4 = 12;
+int pin5 = 13;
+int pin6 = 14;
+int pin7 = 15;
+int pin8 = 18;
+
 void setup () {
 #if defined(bluetoothserial)
   ConsolePort.begin("Borinot Esquerra");
 #else
-  Serial.begin(9600);   
+  ConsolePort.begin(115200);   
   int start = millis(); 
   while ((millis() - start) < 5000) { if (Serial) break; }
 #endif
@@ -5109,7 +5125,22 @@ void setup () {
   initenv();
   initsleep();
   initgfx();
-  pfstring(PSTR("uLisp 3.3 "), pserial); pln(pserial);
+
+  // put your setup code here, to run once:
+  for (int i = 0 ; i < 8; i++)
+  {
+    ledcSetup(i, 12000, 8);                      //12 kHz , 8 bit
+  }
+  ledcAttachPin(pin1, 0);
+  ledcAttachPin(pin2, 1);
+  ledcAttachPin(pin3, 2);
+  ledcAttachPin(pin4, 3);
+  ledcAttachPin(pin5, 4);
+  ledcAttachPin(pin6, 5);
+  ledcAttachPin(pin7, 6);
+  ledcAttachPin(pin8, 7);
+    
+  pfstring(PSTR("uLisp 3.3 for Borinot"), pserial); pln(pserial);
 }
 
 // Read/Evaluate/Print loop
@@ -5167,4 +5198,101 @@ void loop () {
   client.stop();
   #endif
   repl(NULL);
+}
+
+// Borinot
+#include "pinAssignement.h"
+// Look at http://www.ulisp.com/show?2E0A for how uLisp functions are to be implemented
+
+volatile long int rounds = 0;
+
+// (rounds)
+object *fn_rounds (object *args, object *env) {
+  (void) env;
+  int r = rounds;
+  rounds = 0;
+  return number(r);
+}
+
+// (reset)
+object *fn_reset (object *args, object *env) {
+  (void) env;
+  1/0;
+  return nil;
+}
+
+// (battery)
+object *fn_battery (object *args, object *env) {
+  (void) env;
+  checkanalogread(BATTERY);
+  return number(analogRead(BATTERY));
+}
+
+// (speed ...) has two modes: all motors or a single motor
+// (speed 0...255) sets all motors to 0...255
+// (speed '(0 255)) sets motor 0 to 255 
+// (speed -255) sets all motors to -255
+object *fn_speed (object *args, object *env) {
+  (void) args, (void) env;
+  object *arg1 = first(args);
+  if integerp(arg1) {
+      object *speed = arg1;
+      // ...
+      return nil;
+  } else {
+    if (arg1 == NULL || cdr(arg1) == NULL) {
+        error(BORINOT_SPEED_N, PSTR("argument is not a list of two items"), args);
+    }
+    int motorID = integerp(first(arg1));
+    int motorValue = integerp(second(arg1));
+  }
+  return nil;
+}
+
+// (servo #servo #value)
+// (servo 0 255)
+// (servo 0 0)
+object *fn_servo (object *args, object *env) {
+  (void) args, (void) env;
+  object *arg1 = first(args);
+  if (arg1 == NULL || cdr(arg1) == NULL) {
+      error(BORINOT_SERVO_N, PSTR("argument is not a list of two items"), args);
+  }
+  int servoID = integerp(first(arg1));
+  int servoValue = integerp(second(arg1));
+  return nil;
+}
+
+// (ledcsetup 0 1000 8)
+object *fn_ledcsetup (object *args, object *env) {
+  (void) args, (void) env;
+  int channelID = integerp(first(args));
+  int freq = integerp(second(args));
+  int resolution = integerp(third(args));
+  ledcSetup(channelID, freq, resolution);
+  return nil;
+}
+
+// (ledcattachpin 23 0)
+object *fn_ledcattachpin (object *args, object *env) {
+  (void) args, (void) env;
+  int pin = integerp(first(args));
+  int channelID = integerp(second(args));
+  ledcAttachPin(pin, channelID);
+  return nil;
+}
+
+// (ledcwrite 0 128)
+object *fn_ledcwrite (object *args, object *env) {
+  (void) args, (void) env;
+  int channelID = integerp(first(args));
+  int dutyCycle = integerp(second(args));
+  ledcWrite(channelID, dutyCycle);
+  return nil;
+}
+
+// Borinot implementation
+
+void borinotloop() {
+  ++rounds;
 }

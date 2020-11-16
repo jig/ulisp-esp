@@ -23,5 +23,5 @@
 #  define MOTOR_R_0              31
 #  define MOTOR_R_1              29 
   
-#  define BATTERY                A0
+#  define BATTERY                4
 #endif
