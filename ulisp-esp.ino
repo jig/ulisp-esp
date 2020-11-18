@@ -17,16 +17,23 @@ const char LispLibrary[] PROGMEM = "";
 // #define lisplibrary
 #define lineeditor
 // #define vt100
-#define wifion
+// #define wifion
 // #define bluetoothserial
 // #define prompt
+// #define i2c
+// #define spi
+// #define wire
 
 // Includes
 
 // #include "LispLibrary.h"
 #include <setjmp.h>
+#if defined(spi)
 #include <SPI.h>
+#endif
+#if defined(wire)
 #include <Wire.h>
+#endif
 #include <limits.h>
 #include <EEPROM.h>
 #if defined(bluetoothserial)
@@ -1277,19 +1284,28 @@ inline object *cdrx (object *arg) {
 // I2C interface
 
 void I2Cinit (bool enablePullup) {
+#if defined(wire)
   (void) enablePullup;
   Wire.begin();
+#endif
 }
 
 inline int I2Cread () {
+#if defined(wire)
   return Wire.read();
+#endif
+  return 0;
 }
 
 inline bool I2Cwrite (uint8_t data) {
+#if defined(wire)
   return Wire.write(data);
+#endif
+  return false;
 }
 
 bool I2Cstart (uint8_t address, uint8_t read) {
+#if defined(wire)
  int ok = true;
  if (read == 0) {
    Wire.beginTransmission(address);
@@ -1298,22 +1314,35 @@ bool I2Cstart (uint8_t address, uint8_t read) {
  }
  else Wire.requestFrom(address, I2CCount);
  return ok;
+#endif
+  return false;
 }
 
 bool I2Crestart (uint8_t address, uint8_t read) {
+#if defined(wire)
   int error = (Wire.endTransmission(false) != 0);
   if (read == 0) Wire.beginTransmission(address);
   else Wire.requestFrom(address, I2CCount);
   return error ? false : true;
+#endif
+  return false;
 }
 
 void I2Cstop (uint8_t read) {
+#if defined(wire)
   if (read == 0) Wire.endTransmission(); // Check for error?
+#endif
 }
 
 // Streams
 
-inline int spiread () { return SPI.transfer(0); }
+inline int spiread () { 
+#if defined(spi)
+  return SPI.transfer(0); 
+#else
+  return 0;
+#endif
+}
 inline int serial1read () { while (!Serial1.available()) testescape(); return Serial1.read(); }
 #if defined(sdcardsupport)
 File SDpfile, SDgfile;
@@ -1374,7 +1403,12 @@ gfun_t gstreamfun (object *args) {
   return gfun;
 }
 
-inline void spiwrite (char c) { SPI.transfer(c); }
+inline void spiwrite (char c) { 
+#if defined(spi)
+  SPI.transfer(c); 
+#endif
+}
+
 inline void serial1write (char c) { Serial1.write(c); }
 #if defined(wifion)
 inline void WiFiwrite (char c) { client.write(c); }
@@ -1892,6 +1926,7 @@ object *sp_withi2c (object *args, object *env) {
 }
 
 object *sp_withspi (object *args, object *env) {
+#if defined(spi)
   object *params = first(args);
   if (params == NULL) error2(WITHSPI, nostream);
   object *var = first(params);
@@ -1925,6 +1960,9 @@ object *sp_withspi (object *args, object *env) {
   digitalWrite(pin, HIGH);
   SPI.endTransaction();
   return result;
+#else
+  return nil;
+#endif
 }
 
 object *sp_withsdcard (object *args, object *env) {
@@ -3343,6 +3381,7 @@ object *fn_writeline (object *args, object *env) {
 }
 
 object *fn_restarti2c (object *args, object *env) {
+#if defined(wire)
   (void) env;
   int stream = first(args)->integer;
   args = cdr(args);
@@ -3356,6 +3395,8 @@ object *fn_restarti2c (object *args, object *env) {
   int address = stream & 0xFF;
   if (stream>>8 != I2CSTREAM) error2(RESTARTI2C, PSTR("not an i2c stream"));
   return I2Crestart(address, read) ? tee : nil;
+#endif
+  return nil;
 }
 
 object *fn_gc (object *obj, object *env) {
@@ -5127,19 +5168,6 @@ void setup () {
   initgfx();
 
   // put your setup code here, to run once:
-  for (int i = 0 ; i < 8; i++)
-  {
-    ledcSetup(i, 12000, 8);                      //12 kHz , 8 bit
-  }
-  ledcAttachPin(pin1, 0);
-  ledcAttachPin(pin2, 1);
-  ledcAttachPin(pin3, 2);
-  ledcAttachPin(pin4, 3);
-  ledcAttachPin(pin5, 4);
-  ledcAttachPin(pin6, 5);
-  ledcAttachPin(pin7, 6);
-  ledcAttachPin(pin8, 7);
-    
   pfstring(PSTR("uLisp 3.3 for Borinot"), pserial); pln(pserial);
 }
 
@@ -5197,6 +5225,20 @@ void loop () {
   #if defined(wifion)
   client.stop();
   #endif
+
+  for (int i = 0 ; i < 8; i++)
+  {
+    ledcSetup(i, 20000, 8);                      //12 kHz , 8 bit
+  }
+  ledcAttachPin(pin1, 0);
+  ledcAttachPin(pin2, 1);
+  ledcAttachPin(pin3, 2);
+  ledcAttachPin(pin4, 3);
+  ledcAttachPin(pin5, 4);
+  ledcAttachPin(pin6, 5);
+  ledcAttachPin(pin7, 6);
+  ledcAttachPin(pin8, 7);
+
   repl(NULL);
 }
 
